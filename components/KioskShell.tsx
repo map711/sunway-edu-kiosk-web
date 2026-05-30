@@ -6,13 +6,15 @@ import FacilitiesTab from "./FacilitiesTab";
 import DepartmentsTab from "./DepartmentsTab";
 import SearchResults from "./SearchResults";
 import Screensaver from "./Screensaver";
+import AdminPanel from "./AdminPanel";
 import type { Category, Staff } from "@/lib/types";
 
 const IDLE_SECONDS = 20;
+const ADMIN_CODE = "my3245campusx";
 const TABS = ["Popular Searches", "Facilities / Offices", "Departments / Staffs"] as const;
 
 export default function KioskShell() {
-  const { loaded, loadData, loadStaff } = useDataStore();
+  const { loadData, loadStaff } = useDataStore();
 
   const [tab, setTab] = useState(0);
   const [query, setQuery] = useState("");
@@ -20,6 +22,7 @@ export default function KioskShell() {
   const [filterDepartment, setFilterDepartment] = useState<string | null>(null);
   const [screensaverExpanded, setScreensaverExpanded] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const idleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -36,7 +39,6 @@ export default function KioskShell() {
   const resetIdle = useCallback(() => {
     if (idleRef.current) clearTimeout(idleRef.current);
     idleRef.current = setTimeout(() => {
-      // go idle: expand screensaver and reset state
       setScreensaverExpanded(true);
       setQuery("");
       setFilterCategory(null);
@@ -61,6 +63,13 @@ export default function KioskShell() {
   };
 
   const handleQueryChange = (val: string) => {
+    // Check for admin code
+    if (val === ADMIN_CODE) {
+      setShowAdmin(true);
+      setQuery("");
+      inputRef.current?.blur();
+      return;
+    }
     setQuery(val);
     setFilterCategory(null);
     setFilterDepartment(null);
@@ -116,6 +125,9 @@ export default function KioskShell() {
       {/* Screensaver overlay */}
       <Screensaver isExpanded={screensaverExpanded} onTap={handleScreensaverTap} />
 
+      {/* Admin panel */}
+      {showAdmin && <AdminPanel onClose={() => { setShowAdmin(false); setQuery(""); }} />}
+
       {/* Search bar */}
       <div className="flex items-center gap-2 px-4 pt-3 pb-2 flex-shrink-0">
         <input
@@ -149,13 +161,6 @@ export default function KioskShell() {
               </button>
             ))}
           </div>
-        </div>
-      )}
-
-      {/* Department header when showing department results */}
-      {showResults && filterDepartment && (
-        <div className="flex items-center justify-between px-4 py-3 border-b border-[#e5e5ea] flex-shrink-0">
-          <span className="text-[17px] font-semibold text-black">{filterDepartment}</span>
         </div>
       )}
 

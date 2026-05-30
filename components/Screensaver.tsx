@@ -7,6 +7,9 @@ interface Props {
   onTap: () => void;
 }
 
+// Mirror iOS: view is always full-screen, transform scales it to thumbnail
+const THUMBNAIL_SCALE = 0.15;
+
 export default function Screensaver({ isExpanded, onTap }: Props) {
   const highlights = useDataStore(s => s.highlights);
   const [current, setCurrent] = useState(0);
@@ -22,7 +25,7 @@ export default function Screensaver({ isExpanded, onTap }: Props) {
   useEffect(() => {
     restartTimer();
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [highlights.length]);
 
   const handleTap = () => {
@@ -30,47 +33,50 @@ export default function Screensaver({ isExpanded, onTap }: Props) {
     onTap();
   };
 
-  const thumbnailStyle: React.CSSProperties = {
+  // Always covers full screen. Use CSS transform to shrink into thumbnail.
+  // transform-origin: bottom right keeps it anchored at that corner when scaled.
+  const style: React.CSSProperties = {
     position: "fixed",
-    bottom: 20,
-    right: 20,
-    width: "15vw",
-    height: "20vw",
-    transform: "none",
-    borderRadius: 10,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 50,
+    cursor: "pointer",
     overflow: "hidden",
-    boxShadow: "0 8px 32px rgba(0,0,0,0.35)",
-    zIndex: 50,
-    cursor: "pointer",
-  };
-
-  const expandedStyle: React.CSSProperties = {
-    position: "fixed",
-    inset: 0,
-    zIndex: 50,
-    cursor: "pointer",
+    transformOrigin: "bottom right",
+    transform: isExpanded ? "scale(1)" : `scale(${THUMBNAIL_SCALE})`,
+    // Visual border-radius: divide by scale so it looks ~10px when thumbnail-sized
+    borderRadius: isExpanded ? 0 : Math.round(10 / THUMBNAIL_SCALE),
+    boxShadow: isExpanded ? "none" : "0 8px 32px rgba(0,0,0,0.4)",
+    transition: [
+      "transform 0.75s cubic-bezier(0.34, 1.56, 0.64, 1)",
+      "border-radius 0.4s ease",
+      "box-shadow 0.4s ease",
+    ].join(", "),
+    // Pointer events: only catch taps when expanded; in thumbnail let taps through the content behind
+    pointerEvents: "auto",
   };
 
   return (
-    <div
-      style={isExpanded ? expandedStyle : thumbnailStyle}
-      className="screensaver-enter"
-      onClick={handleTap}
-    >
-      <div className="w-full h-full bg-black relative overflow-hidden">
+    <div style={style} onClick={handleTap}>
+      <div className="w-full h-full bg-black relative">
         {highlights.map((h, i) => (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             key={h.id}
             src={h.image.replace("http:", "https:")}
             alt={h.title}
-            className="absolute inset-0 w-full h-full object-cover transition-opacity duration-700"
-            style={{ opacity: i === current % highlights.length ? 1 : 0 }}
+            className="absolute inset-0 w-full h-full object-cover"
+            style={{
+              opacity: i === current % highlights.length ? 1 : 0,
+              transition: "opacity 0.7s ease",
+            }}
           />
         ))}
         {highlights.length === 0 && (
-          <div className="w-full h-full bg-[#1a1a2e] flex items-center justify-center">
-            <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin opacity-40" />
+          <div className="w-full h-full bg-[#111] flex items-center justify-center">
+            <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin opacity-30" />
           </div>
         )}
       </div>
