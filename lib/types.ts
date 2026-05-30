@@ -82,6 +82,6 @@ export interface KioskData {
   categories: Category[];
   locations: Location[];
   nodes: Node[];
-  highlights: Highlight[];
+  kiosklights: Highlight[]; // API uses "kiosklights" not "highlights"
   trendings: Trending[];
 }

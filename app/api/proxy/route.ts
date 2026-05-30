@@ -29,8 +29,13 @@ export async function GET(req: NextRequest) {
 
   let json: string;
   if (url.endsWith(".gz")) {
-    const decompressed = await gunzip(buf);
-    json = decompressed.toString("utf8");
+    try {
+      const decompressed = await gunzip(buf);
+      json = decompressed.toString("utf8");
+    } catch {
+      // Not actually gzip — treat as plain text/json
+      json = buf.toString("utf8");
+    }
   } else {
     json = buf.toString("utf8");
   }

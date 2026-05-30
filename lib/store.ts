@@ -69,7 +69,7 @@ export const useDataStore = create<DataStore>((set, get) => ({
       // Filter highlights
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      const highlights = (data.highlights as Highlight[]).filter(h => {
+      const highlights = (data.kiosklights as Highlight[]).filter(h => {
         const display = new Date(h.display_at);
         const end = new Date(h.end_at);
         return today >= display && end > today;

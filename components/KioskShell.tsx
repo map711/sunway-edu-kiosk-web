@@ -18,15 +18,18 @@ export default function KioskShell() {
   const [query, setQuery] = useState("");
   const [filterCategory, setFilterCategory] = useState<number | null>(null);
   const [filterDepartment, setFilterDepartment] = useState<string | null>(null);
-  const [screensaverExpanded, setScreensaverExpanded] = useState(true);
+  const [screensaverExpanded, setScreensaverExpanded] = useState(false);
   const [showResults, setShowResults] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const idleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Load data on mount
+  // Load data on mount, expand screensaver once highlights are ready
   useEffect(() => {
-    loadData().then(() => loadStaff());
+    loadData().then(() => {
+      loadStaff();
+      setScreensaverExpanded(true);
+    });
   }, [loadData, loadStaff]);
 
   // Reset idle timer

@@ -69,7 +69,9 @@ export default function Screensaver({ isExpanded, onTap }: Props) {
           />
         ))}
         {highlights.length === 0 && (
-          <div className="w-full h-full bg-black" />
+          <div className="w-full h-full bg-[#1a1a2e] flex items-center justify-center">
+            <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin opacity-40" />
+          </div>
         )}
       </div>
     </div>
