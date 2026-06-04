@@ -9,6 +9,11 @@ interface Props {
 
 const SHADOW = "0 8px 32px rgba(0,0,0,0.35)";
 const RADIUS = 16;
+// Smooth spring — fluid deceleration with a very slight overshoot, no jarring size dip
+const SPRING = "0.65s cubic-bezier(0.25, 1.1, 0.5, 1)";
+
+// Thumbnail dimensions (must match between collapsed card and CSS calc below)
+const THUMB = "min(15vw, 160px)";
 
 export default function Screensaver({ isExpanded, onTap }: Props) {
   const highlights = useDataStore(s => s.highlights);
@@ -33,72 +38,76 @@ export default function Screensaver({ isExpanded, onTap }: Props) {
     onTap();
   };
 
-  // Outer wrapper: fullscreen transparent backdrop when expanded, small box when thumbnail
-  const outerStyle: React.CSSProperties = isExpanded
-    ? {
-        position: "fixed",
-        inset: 0,
-        zIndex: 50,
-        cursor: "pointer",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "rgba(0,0,0,0.08)",
-        backdropFilter: "blur(8px)",
-        WebkitBackdropFilter: "blur(8px)",
-      }
-    : {
-        position: "fixed",
-        bottom: 20,
-        right: 20,
-        width: "min(15vw, 160px)",
-        aspectRatio: "3 / 4",
-        zIndex: 50,
-        cursor: "pointer",
-        borderRadius: RADIUS,
-        overflow: "hidden",
-        boxShadow: SHADOW,
-      };
+  // Card always uses top/left anchoring so transitions are smooth between states.
+  // Expanded: centered portrait at 85vh tall.
+  // Collapsed: bottom-right thumbnail.
+  const cardStyle: React.CSSProperties = {
+    position: "fixed",
+    zIndex: 50,
+    overflow: "hidden",
+    borderRadius: RADIUS,
+    boxShadow: SHADOW,
+    cursor: "pointer",
+    transition: `top ${SPRING}, left ${SPRING}, width ${SPRING}, height ${SPRING}`,
+    ...(isExpanded
+      ? {
+          // Center: top = (100vh - 85vh) / 2 = 7.5vh
+          top: "7.5vh",
+          left: "calc(50vw - 85vh * 3 / 8)",
+          width: "calc(85vh * 3 / 4)",
+          height: "85vh",
+        }
+      : {
+          // Bottom-right thumbnail
+          top: `calc(100vh - ${THUMB} * 4 / 3 - 20px)`,
+          left: `calc(100vw - ${THUMB} - 20px)`,
+          width: THUMB,
+          height: `calc(${THUMB} * 4 / 3)`,
+        }),
+  };
 
-  // Inner poster: sized portrait container, centered in backdrop when expanded
-  const innerStyle: React.CSSProperties = isExpanded
-    ? {
-        height: "85vh",
-        aspectRatio: "3 / 4",
-        borderRadius: RADIUS,
-        overflow: "hidden",
-        boxShadow: SHADOW,
-        position: "relative",
-        flexShrink: 0,
-      }
-    : {
-        width: "100%",
-        height: "100%",
-        position: "relative",
-      };
+  // Separate backdrop that fades in/out independently (faster than card spring)
+  const backdropStyle: React.CSSProperties = {
+    position: "fixed",
+    inset: 0,
+    zIndex: 49,
+    pointerEvents: isExpanded ? "auto" : "none",
+    background: "rgba(0,0,0,0.04)",
+    backdropFilter: isExpanded ? "blur(3px)" : "blur(0px)",
+    WebkitBackdropFilter: isExpanded ? "blur(3px)" : "blur(0px)",
+    opacity: isExpanded ? 1 : 0,
+    transition: "opacity 0.35s ease, backdrop-filter 0.35s ease, -webkit-backdrop-filter 0.35s ease",
+  };
+
+  const images = (
+    <>
+      {highlights.map((h, i) => (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          key={h.id}
+          src={h.image.replace("http:", "https:")}
+          alt={h.title}
+          className="absolute inset-0 w-full h-full object-cover"
+          style={{
+            opacity: i === current % highlights.length ? 1 : 0,
+            transition: "opacity 0.7s ease",
+          }}
+        />
+      ))}
+      {highlights.length === 0 && (
+        <div className="w-full h-full bg-[#111] flex items-center justify-center">
+          <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin opacity-30" />
+        </div>
+      )}
+    </>
+  );
 
   return (
-    <div style={outerStyle} onClick={handleTap}>
-      <div style={innerStyle}>
-        {highlights.map((h, i) => (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            key={h.id}
-            src={h.image.replace("http:", "https:")}
-            alt={h.title}
-            className="absolute inset-0 w-full h-full object-cover"
-            style={{
-              opacity: i === current % highlights.length ? 1 : 0,
-              transition: "opacity 0.7s ease",
-            }}
-          />
-        ))}
-        {highlights.length === 0 && (
-          <div className="w-full h-full bg-[#111] flex items-center justify-center">
-            <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin opacity-30" />
-          </div>
-        )}
+    <>
+      <div style={backdropStyle} onClick={handleTap} />
+      <div style={cardStyle} onClick={handleTap}>
+        {images}
       </div>
-    </div>
+    </>
   );
 }
