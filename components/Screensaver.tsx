@@ -43,9 +43,9 @@ export default function Screensaver({ isExpanded, onTap }: Props) {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "rgba(0,0,0,0.15)",
-        backdropFilter: "blur(20px)",
-        WebkitBackdropFilter: "blur(20px)",
+        background: "rgba(0,0,0,0.08)",
+        backdropFilter: "blur(8px)",
+        WebkitBackdropFilter: "blur(8px)",
       }
     : {
         position: "fixed",
