@@ -7,10 +7,11 @@ interface Props {
   query: string;
   filterCategory?: number | null;
   filterDepartment?: string | null;
+  onLocationSelect: (id: number) => void;
   onStaffSelect: (s: Staff) => void;
 }
 
-export default function SearchResults({ query, filterCategory, filterDepartment, onStaffSelect }: Props) {
+export default function SearchResults({ query, filterCategory, filterDepartment, onLocationSelect, onStaffSelect }: Props) {
   const { locations, staffs, categories } = useDataStore();
   const q = query.toLowerCase().trim();
 
@@ -51,7 +52,7 @@ export default function SearchResults({ query, filterCategory, filterDepartment,
           )}
           {matchedLocations.map((loc, i) => (
             <div key={loc.id}>
-              <div className="flex items-start gap-3 px-4 py-3 row-press">
+              <div className="flex items-start gap-3 px-4 py-3 row-press" onClick={() => onLocationSelect(loc.id)}>
                 <div className="w-11 h-11 rounded-xl overflow-hidden flex-shrink-0 bg-[#f2f2f7] flex items-center justify-center">
                   {loc.images[0] ? (
                     // eslint-disable-next-line @next/next/no-img-element

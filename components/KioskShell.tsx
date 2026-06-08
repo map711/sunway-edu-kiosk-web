@@ -7,6 +7,7 @@ import DepartmentsTab from "./DepartmentsTab";
 import SearchResults from "./SearchResults";
 import Screensaver from "./Screensaver";
 import AdminPanel from "./AdminPanel";
+import MapView from "./MapView";
 import type { Category, Staff } from "@/lib/types";
 
 const IDLE_SECONDS = 20;
@@ -14,7 +15,7 @@ const ADMIN_CODE = "my3245campusx";
 const TABS = ["Popular Searches", "Facilities / Offices", "Departments / Staffs"] as const;
 
 export default function KioskShell() {
-  const { loadData, loadStaff } = useDataStore();
+  const { loadData, loadStaff, locations } = useDataStore();
 
   const [tab, setTab] = useState(0);
   const [query, setQuery] = useState("");
@@ -23,6 +24,8 @@ export default function KioskShell() {
   const [screensaverExpanded, setScreensaverExpanded] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
+  const [mapDestinationId, setMapDestinationId] = useState<number | null>(null);
+  const [mapMounted, setMapMounted] = useState(false); // keep map alive once first opened
 
   const inputRef = useRef<HTMLInputElement>(null);
   const idleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -109,8 +112,23 @@ export default function KioskShell() {
     resetIdle();
   };
 
-  const handleStaffSelect = (_s: Staff) => {
-    // TODO: hand off to web map with _s.lotID as destination
+  const openMap = (destinationId: number) => {
+    setMapDestinationId(destinationId);
+    setMapMounted(true);
+    resetIdle();
+  };
+
+  const handleLocationSelect = (id: number) => openMap(id);
+
+  const handleStaffSelect = (s: Staff) => {
+    // lotID matches location.venue — resolve to location.id for the map
+    const loc = locations.find(l => l.venue === s.lotID);
+    if (loc) openMap(loc.id);
+    resetIdle();
+  };
+
+  const handleMapClose = () => {
+    setMapDestinationId(null);
     resetIdle();
   };
 
@@ -127,6 +145,13 @@ export default function KioskShell() {
 
       {/* Admin panel */}
       {showAdmin && <AdminPanel onClose={() => { setShowAdmin(false); setQuery(""); }} />}
+
+      {/* Map overlay — kept mounted once shown so it doesn't re-fetch on every open */}
+      {mapMounted && (
+        <div style={{ display: mapDestinationId ? "flex" : "none", position: "fixed", inset: 0, zIndex: 60, flexDirection: "column" }}>
+          <MapView destinationId={mapDestinationId} onClose={handleMapClose} />
+        </div>
+      )}
 
       {/* Search bar */}
       <div className="flex items-center gap-2 px-4 pt-3 pb-2 flex-shrink-0">
@@ -170,6 +195,7 @@ export default function KioskShell() {
           query={query}
           filterCategory={filterCategory}
           filterDepartment={filterDepartment}
+          onLocationSelect={handleLocationSelect}
           onStaffSelect={handleStaffSelect}
         />
       ) : (

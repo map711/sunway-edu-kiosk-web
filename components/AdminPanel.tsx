@@ -8,6 +8,7 @@ interface Props {
 
 const WORKING_START_KEY = "admin.working.start";
 const WORKING_END_KEY   = "admin.working.end";
+const KIOSK_NODE_KEY    = "admin.kiosk.nodeId";
 
 function timeToMinutes(hhmm: string): number {
   const [h, m] = hhmm.split(":").map(Number);
@@ -28,6 +29,7 @@ export default function AdminPanel({ onClose }: Props) {
   const [workingEnd, setWorkingEnd] = useState(() =>
     minutesToTime(parseInt(localStorage?.getItem(WORKING_END_KEY) ?? "1170")) // 19:30
   );
+  const [kioskNodeId, setKioskNodeId] = useState(() => localStorage?.getItem(KIOSK_NODE_KEY) ?? "");
   const [cacheStatus, setCacheStatus] = useState("");
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -145,16 +147,35 @@ export default function AdminPanel({ onClose }: Props) {
             )}
           </section>
 
-          {/* Map integration stub */}
+          {/* Map integration */}
           <section>
             <p className="text-[12px] font-semibold text-[#6b6b6b] uppercase tracking-wide mb-3">Map Integration</p>
             <div className="bg-[#f2f2f7] rounded-xl overflow-hidden">
-              <Row label="Kiosk Node" value="Not set" muted />
-              <div className="divider-full" />
-              <Row label="Map" value="Web map (external)" muted />
+              <div className="flex items-center px-4 py-3 gap-3">
+                <span className="flex-1 text-[15px] text-black">Kiosk Node ID</span>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  placeholder="e.g. 868"
+                  value={kioskNodeId}
+                  onChange={e => setKioskNodeId(e.target.value)}
+                  className="text-[15px] text-[#00226B] bg-transparent border-none outline-none font-medium w-24 text-right"
+                />
+              </div>
             </div>
+            <button
+              onClick={() => {
+                localStorage.setItem(KIOSK_NODE_KEY, kioskNodeId);
+                setCacheStatus("Kiosk node saved.");
+                setTimeout(() => setCacheStatus(""), 2000);
+              }}
+              className="mt-2 w-full py-3 rounded-xl text-white text-[15px] font-medium"
+              style={{ backgroundColor: "var(--navy)" }}
+            >
+              Save Node ID
+            </button>
             <p className="text-[12px] text-[#8e8e93] mt-2 text-center">
-              Map is handled by the separate web map service
+              Used as the &ldquo;You Are Here&rdquo; start point for directions
             </p>
           </section>
 

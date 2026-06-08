@@ -1,11 +1,12 @@
 "use client";
 import { create } from "zustand";
-import type { Category, Highlight, KioskData, Level, Location, Staff, Trending } from "./types";
+import type { Category, Highlight, KioskData, Level, Location, Node, Staff, Trending } from "./types";
 
 interface DataStore {
   levels: Record<number, Level>;
   categories: Record<number, Category>;
   locations: Location[];
+  nodes: Node[];
   highlights: Highlight[];
   trendings: Trending[];
   staffs: Staff[];
@@ -25,6 +26,7 @@ export const useDataStore = create<DataStore>((set, get) => ({
   levels: {},
   categories: {},
   locations: [],
+  nodes: [],
   highlights: [],
   trendings: [],
   staffs: [],
@@ -79,6 +81,7 @@ export const useDataStore = create<DataStore>((set, get) => ({
         levels: levelsMap,
         categories: categoriesMap,
         locations,
+        nodes: data.nodes,
         highlights,
         trendings: [...data.trendings].sort((a, b) => a.position - b.position),
         loaded: true,
