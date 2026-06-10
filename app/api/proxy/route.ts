@@ -7,6 +7,7 @@ const gunzip = promisify(zlib.gunzip);
 const ALLOWED_HOSTS = [
   "sunwayedu3-data.indoorcms.com",
   "izone.sunway.edu.my",
+  "maps-sunwayedu.getmallapp.com",
 ];
 
 export async function GET(req: NextRequest) {
@@ -26,6 +27,13 @@ export async function GET(req: NextRequest) {
   if (!res.ok) return NextResponse.json({ error: "Upstream error" }, { status: res.status });
 
   const buf = Buffer.from(await res.arrayBuffer());
+
+  // JavaScript files — return as-is with correct MIME type
+  if (url.endsWith(".js")) {
+    return new NextResponse(buf, {
+      headers: { "Content-Type": "application/javascript", "Cache-Control": "s-maxage=86400" },
+    });
+  }
 
   let json: string;
   if (url.endsWith(".gz")) {

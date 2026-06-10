@@ -12,10 +12,17 @@ import type { Category, Staff } from "@/lib/types";
 
 const IDLE_SECONDS = 20;
 const ADMIN_CODE = "my3245campusx";
+const KIOSK_NODE_KEY = "admin.kiosk.nodeId";
 const TABS = ["Popular Searches", "Facilities / Offices", "Departments / Staffs"] as const;
 
+interface FloorOption {
+  levelId: number;
+  title: string;
+  label: string;
+}
+
 export default function KioskShell() {
-  const { loadData, loadStaff, locations } = useDataStore();
+  const { loadData, loadStaff, locations, nodes, levels } = useDataStore();
 
   const [tab, setTab] = useState(0);
   const [query, setQuery] = useState("");
@@ -25,7 +32,9 @@ export default function KioskShell() {
   const [showResults, setShowResults] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
   const [mapDestinationId, setMapDestinationId] = useState<number | null>(null);
-  const [mapMounted, setMapMounted] = useState(false); // keep map alive once first opened
+  const [mapMounted, setMapMounted] = useState(false);
+  const [notProvisionedAlert, setNotProvisionedAlert] = useState(false);
+  const [floorPicker, setFloorPicker] = useState<{ locationId: number; floors: FloorOption[] } | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const idleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -48,6 +57,9 @@ export default function KioskShell() {
       setFilterDepartment(null);
       setShowResults(false);
       setTab(0);
+      setMapDestinationId(null); // close map on idle
+      setNotProvisionedAlert(false);
+      setFloorPicker(null);
       inputRef.current?.blur();
     }, IDLE_SECONDS * 1000);
   }, []);
@@ -66,7 +78,6 @@ export default function KioskShell() {
   };
 
   const handleQueryChange = (val: string) => {
-    // Check for admin code
     if (val === ADMIN_CODE) {
       setShowAdmin(true);
       setQuery("");
@@ -112,16 +123,38 @@ export default function KioskShell() {
     resetIdle();
   };
 
-  const openMap = (destinationId: number) => {
-    setMapDestinationId(destinationId);
-    setMapMounted(true);
+  const openMap = (locationId: number) => {
+    // Check kiosk is provisioned
+    const rawNodeId = typeof window !== "undefined" ? localStorage.getItem(KIOSK_NODE_KEY) : null;
+    if (!rawNodeId) {
+      setNotProvisionedAlert(true);
+      return;
+    }
+
+    // Find unique floors for this location
+    const locationNodes = nodes.filter(n => n.location === locationId);
+    const seenLevels = new Set<number>();
+    const floors: FloorOption[] = [];
+    for (const node of locationNodes) {
+      if (!seenLevels.has(node.level)) {
+        seenLevels.add(node.level);
+        const level = levels[node.level];
+        if (level) floors.push({ levelId: node.level, title: level.title, label: level.label });
+      }
+    }
+
+    if (floors.length >= 2) {
+      setFloorPicker({ locationId, floors });
+    } else {
+      setMapDestinationId(locationId);
+      setMapMounted(true);
+    }
     resetIdle();
   };
 
   const handleLocationSelect = (id: number) => openMap(id);
 
   const handleStaffSelect = (s: Staff) => {
-    // lotID matches location.venue — resolve to location.id for the map
     const loc = locations.find(l => l.venue === s.lotID);
     if (loc) openMap(loc.id);
     resetIdle();
@@ -147,9 +180,70 @@ export default function KioskShell() {
       {showAdmin && <AdminPanel onClose={() => { setShowAdmin(false); setQuery(""); }} />}
 
       {/* Map overlay — kept mounted once shown so it doesn't re-fetch on every open */}
-      {mapMounted && (
-        <div style={{ display: mapDestinationId ? "flex" : "none", position: "fixed", inset: 0, zIndex: 60, flexDirection: "column" }}>
-          <MapView destinationId={mapDestinationId} onClose={handleMapClose} />
+      {mapMounted && <MapView destinationId={mapDestinationId} onClose={handleMapClose} />}
+
+      {/* "Not provisioned" alert */}
+      {notProvisionedAlert && (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center"
+          style={{ backgroundColor: "rgba(0,0,0,0.4)" }}
+          onClick={() => setNotProvisionedAlert(false)}
+        >
+          <div className="bg-white rounded-2xl max-w-xs w-full mx-6 overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="px-5 pt-5 pb-4 text-center">
+              <p className="text-[17px] font-semibold text-black mb-2">Oops</p>
+              <p className="text-[13px] text-[#3c3c43]">This Kiosk has not been provisioned. Please contact Concierge.</p>
+            </div>
+            <div style={{ borderTop: "0.5px solid #e5e5ea" }}>
+              <button
+                className="w-full py-3 text-[17px] font-medium"
+                style={{ color: "#007aff" }}
+                onClick={() => setNotProvisionedAlert(false)}
+              >
+                Ok
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floor picker */}
+      {floorPicker && (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center"
+          style={{ backgroundColor: "rgba(0,0,0,0.4)" }}
+          onClick={() => setFloorPicker(null)}
+        >
+          <div className="bg-white rounded-2xl max-w-xs w-full mx-6 overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="px-5 pt-5 pb-3 text-center">
+              <p className="text-[17px] font-semibold text-black">To which floor?</p>
+            </div>
+            {floorPicker.floors.map((floor, i) => (
+              <div key={floor.levelId}>
+                <div style={{ borderTop: "0.5px solid #e5e5ea" }} />
+                <button
+                  className="w-full py-3 text-[17px]"
+                  style={{ color: "#007aff" }}
+                  onClick={() => {
+                    setMapDestinationId(floorPicker.locationId);
+                    setMapMounted(true);
+                    setFloorPicker(null);
+                    resetIdle();
+                  }}
+                >
+                  {floor.title} ({floor.label})
+                </button>
+              </div>
+            ))}
+            <div style={{ borderTop: "0.5px solid #e5e5ea" }} />
+            <button
+              className="w-full py-3 text-[17px] font-medium"
+              style={{ color: "#ff3b30" }}
+              onClick={() => setFloorPicker(null)}
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       )}
 
