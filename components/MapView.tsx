@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useDataStore } from "@/lib/store";
 
@@ -30,13 +30,12 @@ interface RouteInfo {
 }
 
 export default function MapView({ destinationId, onClose }: Props) {
-  const { nodes } = useDataStore();
+  const { nodes, levels } = useDataStore();
   const mapRef = useRef<HTMLElement>(null);
   const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
 
   useEffect(() => { ensureScript(); }, []);
 
-  // Add hover + long-press tooltips to wayfinder shadow DOM buttons
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -50,15 +49,11 @@ export default function MapView({ destinationId, onClose }: Props) {
     };
 
     const attachTooltips = () => {
-      try {
+      // Inject kiosk overrides into wayfinder shadow DOM.
+      // useEffect(..., []) ensures this runs only once per mount.
       const shadow = (map as HTMLElement & { shadowRoot: ShadowRoot }).shadowRoot;
-      if (!shadow) return;
-
-      // Inject tooltip style into shadow root once
-      if (!shadow.querySelector("#wf-tooltip-style")) {
-        const style = document.createElement("style");
-        style.id = "wf-tooltip-style";
-        style.textContent = `
+      if (shadow) {
+        const cssText = `
           .wf-tooltip {
             position: absolute;
             right: calc(100% + 10px);
@@ -74,58 +69,73 @@ export default function MapView({ destinationId, onClose }: Props) {
             z-index: 9999;
           }
           .wayfinder-locate-button { position: relative; }
+
+          /* Level buttons: navy fill, white text, full circle (matches iOS MapButton) */
+          .wayfinder-level-button {
+            background-color: #00226B !important;
+            color: #ffffff !important;
+            border-radius: 50% !important;
+          }
+          /* Active level button: light blue (matches iOS selectedColor #6E96FF) */
+          .wayfinder-level-button[data-active='true'] {
+            background-color: #6E96FF !important;
+          }
+          /* Locate buttons: full circle, white bg, dark icon (matches iOS) */
+          .wayfinder-locate-button {
+            border-radius: 50% !important;
+            background-color: #ffffff !important;
+          }
+          /* Force icon to black so it's visible on white background */
+          .wayfinder-locate-button img {
+            filter: brightness(0) !important;
+          }
         `;
-        shadow.appendChild(style);
+
+        try {
+          // adoptedStyleSheets is supported in all modern browsers (Chrome 73+)
+          const sheet = new CSSStyleSheet();
+          sheet.replaceSync(cssText);
+          shadow.adoptedStyleSheets = [...shadow.adoptedStyleSheets, sheet];
+        } catch (_) {
+          // Fallback: append a <style> element
+          try {
+            const style = document.createElement("style");
+            style.textContent = cssText;
+            shadow.appendChild(style);
+          } catch (__) { /* non-critical */ }
+        }
       }
 
-      shadow.querySelectorAll<HTMLButtonElement>("button[data-action]").forEach(btn => {
-        const action = btn.dataset.action ?? "";
-        const label = LABELS[action];
-        if (!label) return;
+      try {
 
-        // Hover tooltip (desktop/dev)
-        btn.title = label;
+        shadow.querySelectorAll<HTMLButtonElement>("button[data-action]").forEach(btn => {
+          const action = btn.dataset.action ?? "";
+          const label = LABELS[action];
+          if (!label) return;
 
-        // Long-press tooltip (touch/kiosk)
-        let timer: ReturnType<typeof setTimeout> | null = null;
-        let tip: HTMLDivElement | null = null;
+          btn.title = label;
 
-        const show = () => {
-          if (tip) return;
-          tip = document.createElement("div");
-          tip.className = "wf-tooltip";
-          tip.textContent = label;
-          btn.appendChild(tip);
-        };
-        const hide = () => {
-          if (timer) { clearTimeout(timer); timer = null; }
-          tip?.remove();
-          tip = null;
-        };
+          let timer: ReturnType<typeof setTimeout> | null = null;
+          let tip: HTMLDivElement | null = null;
 
-        btn.addEventListener("touchstart", () => { timer = setTimeout(show, 400); }, { passive: true });
-        btn.addEventListener("touchend",   hide, { passive: true });
-        btn.addEventListener("touchmove",  hide, { passive: true });
-      });
+          const show = () => {
+            if (tip) return;
+            tip = document.createElement("div");
+            tip.className = "wf-tooltip";
+            tip.textContent = label;
+            btn.appendChild(tip);
+          };
+          const hide = () => {
+            if (timer) { clearTimeout(timer); timer = null; }
+            tip?.remove();
+            tip = null;
+          };
+
+          btn.addEventListener("touchstart", () => { timer = setTimeout(show, 400); }, { passive: true });
+          btn.addEventListener("touchend",   hide, { passive: true });
+          btn.addEventListener("touchmove",  hide, { passive: true });
+        });
       } catch (_) { /* tooltip attachment is non-critical */ }
-    };
-
-    const enforceMinZoom = () => {
-      const el = map as HTMLElement & {
-        getViewState?: () => { scale: number };
-        engine?: { zoom: (f: number) => void };
-      };
-      // Compute min zoom so the floor width (~1.0 world unit) fills the canvas
-      const canvasWidth = map.getBoundingClientRect().width || window.innerWidth;
-      const minZoom = canvasWidth * 0.95; // 95% of canvas width = floor almost fills viewport
-
-      map.addEventListener("view-changed", (e: Event) => {
-        const detail = (e as CustomEvent).detail?.viewState;
-        if (detail && detail.scale < minZoom) {
-          const factor = minZoom / detail.scale;
-          el.engine?.zoom(factor);
-        }
-      });
     };
 
     const routeFloorIndicators = () => {
@@ -138,37 +148,19 @@ export default function MapView({ destinationId, onClose }: Props) {
           const ep = d?.endNode?.point;
           if (sf && ef && sp && ep && isFinite(sp.x) && isFinite(sp.y) && isFinite(ep.x) && isFinite(ep.y)) {
             setRouteInfo({ startFloor: sf, endFloor: ef, startPoint: { x: sp.x, y: sp.y }, endPoint: { x: ep.x, y: ep.y } });
+            // Auto-zoom to destination floor
+            try {
+              const el = map as HTMLElement & { setFloor: (code: string) => void; centerOn: (x: number, y: number, opts?: { animate?: boolean }) => void };
+              el.setFloor(ef);
+              el.centerOn(ep.x, ep.y, { animate: true });
+            } catch (_) {}
           }
         } catch (_) {}
       });
       map.addEventListener("route-cleared", () => setRouteInfo(null));
     };
 
-    const panToContent = () => {
-      const el = map as HTMLElement & {
-        centerOn: (x: number, y: number, opts?: { animate?: boolean }) => void;
-      };
-
-      map.addEventListener("floor-changed", (e: Event) => {
-        try {
-          const floorCode = (e as CustomEvent).detail?.floor as string | undefined;
-          if (!floorCode) return;
-
-          const { nodes: currentNodes, levels } = useDataStore.getState();
-          const matchingLevel = Object.values(levels).find(l => l.code === floorCode);
-          if (!matchingLevel) return;
-
-          const validNodes = currentNodes.filter(n => n.level === matchingLevel.id && isFinite(n.x) && isFinite(n.y));
-          if (!validNodes.length) return;
-
-          const cx = validNodes.reduce((s, n) => s + n.x, 0) / validNodes.length;
-          const cy = validNodes.reduce((s, n) => s + n.y, 0) / validNodes.length;
-          el.centerOn(cx, cy, { animate: false });
-        } catch (_) {}
-      });
-    };
-
-    const setup = () => { attachTooltips(); enforceMinZoom(); panToContent(); routeFloorIndicators(); };
+    const setup = () => { attachTooltips(); routeFloorIndicators(); };
 
     if ((map as HTMLElement & { isInitialized?: boolean }).isInitialized) {
       setup();
@@ -184,6 +176,8 @@ export default function MapView({ destinationId, onClose }: Props) {
       isInitialized: boolean;
       navigateTo: (opts: { from: number; to: number }) => void;
       focusLocation: (id: number) => void;
+      setFloor: (code: string) => void;
+      centerOn: (x: number, y: number, opts?: { animate?: boolean }) => void;
     }) | null;
     if (!map || !destinationId) return;
 
@@ -193,10 +187,26 @@ export default function MapView({ destinationId, onClose }: Props) {
         const kioskNode = nodes.find(n => n.id === Number(rawNodeId));
         if (kioskNode?.location) {
           map.navigateTo({ from: kioskNode.location, to: destinationId });
+          // route-found event will handle auto-zoom
           return;
         }
       }
+      // No kiosk node — focusLocation and manually zoom to destination floor
       map.focusLocation(destinationId);
+      try {
+        const destNodes = nodes.filter(n => n.location === destinationId && isFinite(n.x) && isFinite(n.y));
+        if (destNodes.length) {
+          const level = levels[destNodes[0].level];
+          if (level?.code) {
+            const cx = destNodes.reduce((s, n) => s + n.x, 0) / destNodes.length;
+            const cy = destNodes.reduce((s, n) => s + n.y, 0) / destNodes.length;
+            if (isFinite(cx) && isFinite(cy)) {
+              map.setFloor(level.code);
+              map.centerOn(cx, cy, { animate: true });
+            }
+          }
+        }
+      } catch (_) {}
     };
 
     if (map.isInitialized) {
@@ -204,7 +214,21 @@ export default function MapView({ destinationId, onClose }: Props) {
     } else {
       map.addEventListener("ready", navigate, { once: true });
     }
-  }, [destinationId, nodes]);
+  }, [destinationId, nodes, levels]);
+
+  // Destination floor — pure derivation from store + routeInfo, no event listeners.
+  // When route exists, use routeInfo end floor. Otherwise compute from nodes/levels.
+  const destFloorInfo = useMemo(() => {
+    if (!destinationId) return null;
+    if (routeInfo) return { floor: routeInfo.endFloor, point: routeInfo.endPoint };
+    const destNodes = nodes.filter(n => n.location === destinationId && isFinite(n.x) && isFinite(n.y));
+    if (!destNodes.length) return null;
+    const level = levels[destNodes[0].level];
+    if (!level?.code) return null;
+    const cx = destNodes.reduce((s, n) => s + n.x, 0) / destNodes.length;
+    const cy = destNodes.reduce((s, n) => s + n.y, 0) / destNodes.length;
+    return { floor: level.code, point: { x: cx, y: cy } };
+  }, [destinationId, nodes, levels, routeInfo]);
 
   const kioskNodeId = typeof window !== "undefined"
     ? (localStorage.getItem(KIOSK_NODE_KEY) ?? undefined)
@@ -241,6 +265,7 @@ export default function MapView({ destinationId, onClose }: Props) {
           <span className="text-[17px]">Back</span>
         </button>
 
+        {/* Route floor jump buttons — shown when a route is calculated */}
         {routeInfo && (
           <div className="flex items-center gap-2 ml-auto">
             <button
@@ -266,6 +291,20 @@ export default function MapView({ destinationId, onClose }: Props) {
             </button>
           </div>
         )}
+
+        {/* Destination floor pin — shown when no route (focusLocation only) */}
+        {!routeInfo && destFloorInfo && (
+          <button
+            onClick={() => jumpToFloor(destFloorInfo.floor, destFloorInfo.point)}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-full text-white text-[13px] font-medium ml-auto"
+            style={{ backgroundColor: "#007aff" }}
+          >
+            <svg width="12" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+            </svg>
+            <span>{destFloorInfo.floor}</span>
+          </button>
+        )}
       </div>
 
       <wayfinder-map
@@ -274,14 +313,12 @@ export default function MapView({ destinationId, onClose }: Props) {
         data-url={DATA_URL}
         map-url={MAP_URL}
         route-mode="lift"
-        enable-rotation=""
         level-selector=""
         desktop-render-scale="1500"
         mobile-render-scale="1200"
-        desktop-min-zoom="1300"
-        mobile-min-zoom="700"
         you-are-here-node-id={kioskNodeId}
-        control-active-bg-color="#00226B"
+        control-active-bg-color="#6E96FF"
+        control-active-fg-color="#ffffff"
         map-marker-end-bg-color="#00226B"
         map-marker-connector-bg-color="#00226B"
       />
