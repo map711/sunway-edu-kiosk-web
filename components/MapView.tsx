@@ -31,6 +31,8 @@ interface RouteInfo {
 
 export default function MapView({ destinationId, onClose }: Props) {
   const { nodes, levels } = useDataStore();
+  const nodesRef = useRef(nodes);
+  useEffect(() => { nodesRef.current = nodes; }, [nodes]);
   const mapRef = useRef<HTMLElement>(null);
   const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
 
@@ -224,7 +226,7 @@ export default function MapView({ destinationId, onClose }: Props) {
     const navigate = () => {
       const rawNodeId = localStorage.getItem(KIOSK_NODE_KEY);
       if (rawNodeId) {
-        const kioskNode = nodes.find(n => n.id === Number(rawNodeId));
+        const kioskNode = nodesRef.current.find(n => n.id === Number(rawNodeId));
         if (kioskNode?.location) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const result = (map as any).navigateTo({ from: kioskNode.location, to: destinationId });
@@ -243,9 +245,12 @@ export default function MapView({ destinationId, onClose }: Props) {
     if (map.isInitialized) {
       navigate();
     } else {
-      map.addEventListener("ready", navigate, { once: true });
+      // setTimeout(0) lets the wayfinder's initial ResizeObserver + resetView
+      // complete before we call focusLocation/navigateTo, preventing the
+      // white canvas on first open.
+      map.addEventListener("ready", () => setTimeout(navigate, 0), { once: true });
     }
-  }, [destinationId, nodes]);
+  }, [destinationId]); // nodesRef used instead of nodes to avoid double-navigation
 
   // Destination floor — pure derivation from store + routeInfo, no event listeners.
   // When route exists, use routeInfo end floor. Otherwise compute from nodes/levels.
