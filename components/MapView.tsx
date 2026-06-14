@@ -226,7 +226,8 @@ export default function MapView({ destinationId, onClose }: Props) {
       if (rawNodeId) {
         const kioskNode = nodes.find(n => n.id === Number(rawNodeId));
         if (kioskNode?.location) {
-          const result = (map as typeof map & { navigateTo: (o: object) => { success: boolean } }).navigateTo({ from: kioskNode.location, to: destinationId });
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const result = (map as any).navigateTo({ from: kioskNode.location, to: destinationId });
           if (result?.success) {
             // floor-changed handles scroll when floor changes; fall back for same-floor case
             setTimeout(scrollActiveLevel, 100);
