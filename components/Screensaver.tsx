@@ -13,8 +13,7 @@ const SHADOW = "0 8px 32px rgba(0,0,0,0.35)";
 const RADIUS = 16;
 // Smooth spring — fluid deceleration with a very slight overshoot, no jarring size dip
 const SPRING = "0.65s cubic-bezier(0.25, 1.1, 0.5, 1)";
-// Thumbnail dimensions (must match between collapsed card and CSS calc below)
-const THUMB = "min(15vw, 160px)";
+const THUMB_PX = 120; // collapsed thumbnail width in px
 // Min drag distance to trigger a slide change
 const SLIDE_THRESHOLD = 50;
 
@@ -32,6 +31,24 @@ export default function Screensaver({ isExpanded, onTap, isWorkingHours }: Props
   const [slideAnimate, setSlideAnimate] = useState(false);
   const [dragOffset, setDragOffset] = useState(0);
 
+  // Use visualViewport (actual visible area) to avoid layout-viewport quirks in Android WebView
+  const [vp, setVp] = useState({ w: 0, h: 0 });
+  useEffect(() => {
+    const update = () => {
+      const vv = window.visualViewport;
+      setVp({
+        w: vv ? Math.round(vv.width) : window.innerWidth,
+        h: vv ? Math.round(vv.height) : window.innerHeight,
+      });
+    };
+    update();
+    window.visualViewport?.addEventListener("resize", update);
+    window.addEventListener("resize", update);
+    return () => {
+      window.visualViewport?.removeEventListener("resize", update);
+      window.removeEventListener("resize", update);
+    };
+  }, []);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const dragStartX = useRef<number | null>(null);
@@ -119,19 +136,24 @@ export default function Screensaver({ isExpanded, onTap, isWorkingHours }: Props
     touchAction: "none",
     background: "#111",
     transition: `top ${SPRING}, left ${SPRING}, width ${SPRING}, height ${SPRING}`,
-    ...(isExpanded
-      ? {
-          top: "5vh",
-          left: "5vw",
-          width: "90vw",
-          height: "90vh",
-        }
-      : {
-          top: `calc(100vh - ${THUMB} * 4 / 3 - 20px)`,
-          left: `calc(100vw - ${THUMB} - 20px)`,
-          width: THUMB,
-          height: `calc(${THUMB} * 4 / 3)`,
-        }),
+    ...(vp.w > 0
+      ? (isExpanded
+        ? {
+            top:    `${Math.round(vp.h * 0.05)}px`,
+            left:   `${Math.round(vp.w * 0.05)}px`,
+            width:  `${Math.round(vp.w * 0.90)}px`,
+            height: `${Math.round(vp.h * 0.90)}px`,
+          }
+        : {
+            top:    `${vp.h - THUMB_PX * 4 / 3 - 20}px`,
+            left:   `${vp.w - THUMB_PX - 20}px`,
+            width:  `${THUMB_PX}px`,
+            height: `${Math.round(THUMB_PX * 4 / 3)}px`,
+          })
+      : (isExpanded
+        ? { top: "5vh", left: "5vw", width: "90vw", height: "90vh" }
+        : { top: "calc(100vh - 180px)", left: "calc(100vw - 140px)", width: "120px", height: "160px" }
+      )),
   };
 
   const backdropStyle: React.CSSProperties = {
