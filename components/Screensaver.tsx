@@ -217,6 +217,7 @@ export default function Screensaver({ isExpanded, onTap, isWorkingHours }: Props
                 width: `${pct}%`,
                 height: "100%",
                 objectFit: "contain",
+                background: "#111",
                 flexShrink: 0,
                 userSelect: "none",
                 pointerEvents: "none",
