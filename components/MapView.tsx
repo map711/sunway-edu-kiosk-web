@@ -252,33 +252,33 @@ export default function MapView({ destinationId, onClose }: Props) {
 
   const content = (
     <div
-      className="fixed inset-0 z-[60] bg-white flex flex-col"
+      className="fixed inset-0 z-[60] bg-white"
+      style={{ position: "fixed" }}
       style={{
         visibility: destinationId ? "visible" : "hidden",
         pointerEvents: destinationId ? "auto" : "none",
       }}
     >
-      <div
-        className="flex items-center px-4 flex-shrink-0"
-        style={{ paddingTop: 14, paddingBottom: 14, borderBottom: "0.5px solid #e5e5ea" }}
+      {/* Back button — floating circle, matches wayfinder control style */}
+      <button
+        onClick={onClose}
+        style={{
+          position: "absolute", top: 16, left: 16, zIndex: 10,
+          width: 44, height: 44, borderRadius: "50%",
+          background: "#fff", boxShadow: "0 2px 8px rgba(0,0,0,0.18)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          border: "none", cursor: "pointer",
+        }}
       >
-        <button
-          onClick={onClose}
-          className="flex items-center gap-2"
-          style={{ color: "var(--navy)" }}
-        >
-          <svg width="9" height="15" viewBox="0 0 9 15" fill="none">
-            <path d="M8 1L1.5 7.5 8 14" stroke="currentColor" strokeWidth="2"
-              strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          <span className="text-[17px]">Back</span>
-        </button>
-
-      </div>
+        <svg width="9" height="15" viewBox="0 0 9 15" fill="none">
+          <path d="M8 1L1.5 7.5 8 14" stroke="#00226B" strokeWidth="2"
+            strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
 
       <wayfinder-map
         ref={mapRef}
-        className="flex-1 min-h-0 w-full block"
+        className="absolute inset-0 block"
         data-url={DATA_URL}
         map-url={MAP_URL}
         route-mode="lift"

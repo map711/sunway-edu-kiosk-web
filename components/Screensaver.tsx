@@ -9,6 +9,14 @@ interface Props {
   isWorkingHours: boolean;
 }
 
+// ─── SCREENSAVER VARIANT ───────────────────────────────────────────────────
+// 1 = Black background, card with margin
+// 2 = Black background, card flush to nearest screen edge (0 margin on narrow axis)
+// 3 = Blurred image background — Apple Music style
+// 4 = Average colour background — extreme blur creates a smooth colour wash from the image
+const VARIANT: 1 | 2 | 3 | 4 = 4;
+// ───────────────────────────────────────────────────────────────────────────
+
 const SHADOW = "0 8px 32px rgba(0,0,0,0.35)";
 const RADIUS = 16;
 // Smooth spring — fluid deceleration with a very slight overshoot, no jarring size dip
@@ -129,35 +137,49 @@ export default function Screensaver({ isExpanded, onTap, isWorkingHours }: Props
     });
   };
 
-  // --- Styles ---
+  // --- Expanded card geometry ---
+  const expandedGeometry = (() => {
+    if (!vp.w) return { top: "5vh", left: "5vw", width: "90vw", height: "90vh", borderRadius: RADIUS };
+    if (VARIANT === 2) {
+      const portrait = vp.h >= vp.w;
+      if (portrait) {
+        // Flush left/right, centred vertically
+        const w = vp.w;
+        const h = Math.round(w * imageRatio);
+        const top = Math.round((vp.h - h) / 2);
+        return { top: `${top}px`, left: "0px", width: `${w}px`, height: `${h}px`, borderRadius: 0 };
+      } else {
+        // Flush top/bottom, centred horizontally
+        const h = vp.h;
+        const w = Math.round(h / imageRatio);
+        const left = Math.round((vp.w - w) / 2);
+        return { top: "0px", left: `${left}px`, width: `${w}px`, height: `${h}px`, borderRadius: 0 };
+      }
+    }
+    // VARIANT 1 & 3: 90% width, image-ratio height, centred
+    const w = Math.round(vp.w * 0.90);
+    const h = Math.round(w * imageRatio);
+    const top = Math.round((vp.h - h) / 2);
+    return { top: `${top}px`, left: `${Math.round(vp.w * 0.05)}px`, width: `${w}px`, height: `${h}px`, borderRadius: RADIUS };
+  })();
+
+  const collapsedGeometry = vp.w > 0
+    ? { top: `${vp.h - THUMB_PX * 4 / 3 - 20}px`, left: `${vp.w - THUMB_PX - 20}px`, width: `${THUMB_PX}px`, height: `${Math.round(THUMB_PX * 4 / 3)}px`, borderRadius: RADIUS }
+    : { top: "calc(100vh - 180px)", left: "calc(100vw - 140px)", width: "120px", height: "160px", borderRadius: RADIUS };
+
+  const geom = isExpanded ? expandedGeometry : collapsedGeometry;
+
   const cardStyle: React.CSSProperties = {
     position: "fixed",
     zIndex: 50,
     overflow: "hidden",
-    borderRadius: RADIUS,
+    borderRadius: geom.borderRadius,
     boxShadow: SHADOW,
     cursor: "grab",
     touchAction: "none",
     background: "#111",
     transition: `top ${SPRING}, left ${SPRING}, width ${SPRING}, height ${SPRING}`,
-    ...(vp.w > 0
-      ? (isExpanded
-        ? (() => {
-            const w = Math.round(vp.w * 0.90);
-            const h = Math.round(w * imageRatio); // derived from actual image natural dimensions
-            const top = Math.round((vp.h - h) / 2);
-            return { top: `${top}px`, left: `${Math.round(vp.w * 0.05)}px`, width: `${w}px`, height: `${h}px` };
-          })()
-        : {
-            top:    `${vp.h - THUMB_PX * 4 / 3 - 20}px`,
-            left:   `${vp.w - THUMB_PX - 20}px`,
-            width:  `${THUMB_PX}px`,
-            height: `${Math.round(THUMB_PX * 4 / 3)}px`,
-          })
-      : (isExpanded
-        ? { top: "5vh", left: "5vw", width: "90vw", height: "90vh" }
-        : { top: "calc(100vh - 180px)", left: "calc(100vw - 140px)", width: "120px", height: "160px" }
-      )),
+    top: geom.top, left: geom.left, width: geom.width, height: geom.height,
   };
 
   const backdropStyle: React.CSSProperties = {
@@ -165,12 +187,14 @@ export default function Screensaver({ isExpanded, onTap, isWorkingHours }: Props
     inset: 0,
     zIndex: 49,
     pointerEvents: isExpanded ? "auto" : "none",
-    background: "rgba(0,0,0,0.55)",
-    backdropFilter: isExpanded ? "blur(3px)" : "blur(0px)",
-    WebkitBackdropFilter: isExpanded ? "blur(3px)" : "blur(0px)",
+    background: (VARIANT === 3 || VARIANT === 4) ? "rgba(0,0,0,0)" : "#000",
     opacity: isExpanded ? 1 : 0,
-    transition: "opacity 0.35s ease, backdrop-filter 0.35s ease, -webkit-backdrop-filter 0.35s ease",
+    transition: "opacity 0.35s ease",
   };
+
+  // Variant 3: blurred background image (current slide)
+  const currentSlide = slides[displayIndex] ?? slides[1];
+  const bgImageUrl = currentSlide?.image?.replace("http:", "https:") ?? "";
 
   // Strip translateX: percentage is relative to strip's own width (slides.length * cardWidth),
   // so -displayIndex * pct% == -displayIndex * cardWidth. Drag offset added in pixels.
@@ -194,6 +218,40 @@ export default function Screensaver({ isExpanded, onTap, isWorkingHours }: Props
   return createPortal(
     <>
       <div style={backdropStyle} onClick={() => { restartTimer(); onTap(); }} />
+      {/* Variant 3: blurred ambient background */}
+      {VARIANT === 3 && isExpanded && bgImageUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={bgImageUrl}
+          alt=""
+          aria-hidden
+          style={{
+            position: "fixed", inset: 0, zIndex: 48,
+            width: "100%", height: "100%",
+            objectFit: "cover",
+            filter: "blur(48px) saturate(1.4) brightness(0.5)",
+            transform: "scale(1.08)",
+            pointerEvents: "none",
+          }}
+        />
+      )}
+      {/* Variant 4: average colour wash — extreme blur approximates the image's dominant colour */}
+      {VARIANT === 4 && isExpanded && bgImageUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={bgImageUrl}
+          alt=""
+          aria-hidden
+          style={{
+            position: "fixed", inset: 0, zIndex: 48,
+            width: "100%", height: "100%",
+            objectFit: "cover",
+            filter: "blur(200px) saturate(1.6) brightness(0.6)",
+            transform: "scale(2)", // scale up so blur doesn't show edges
+            pointerEvents: "none",
+          }}
+        />
+      )}
       <div
         style={cardStyle}
         onPointerDown={handlePointerDown}
