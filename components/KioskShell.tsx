@@ -247,8 +247,8 @@ export default function KioskShell() {
       {/* ── V1 Header: Navy bar with branding + search ── */}
       <div className="v1-header">
         <div className="v1-brand">
-          <span className="v1-brand-sub">Campus Directory</span>
           <span className="v1-brand-name">Sunway University</span>
+          <span className="v1-brand-sub">Campus Directory</span>
         </div>
         <div className="v1-search-row">
           <input

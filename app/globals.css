@@ -78,9 +78,10 @@ html, body {
 
 .v1-brand {
   display: flex;
+  flex-direction: column;
   justify-content: center;
-  align-items: baseline;
-  gap: 10px;
+  align-items: center;
+  gap: 3px;
   margin-bottom: 12px;
 }
 
@@ -175,7 +176,7 @@ html, body {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 10px;
-  padding: 14px;
+  padding: 24px 20px;
 }
 
 .v1-cat-tile {
@@ -223,7 +224,7 @@ html, body {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
-  padding: 14px 14px 8px;
+  padding: 24px 20px 8px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -280,7 +281,7 @@ html, body {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
-  padding: 12px 14px;
+  padding: 24px 20px;
   display: flex;
   justify-content: center;
   flex-direction: column;
@@ -316,7 +317,7 @@ html, body {
 
 /* Search results */
 .v1-results-hdr {
-  padding: 14px 20px 8px;
+  padding: 24px 20px 8px;
   font-family: var(--font-head);
   font-size: 12px;
   font-weight: 700;
