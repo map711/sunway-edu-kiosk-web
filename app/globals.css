@@ -72,7 +72,7 @@ html, body {
 /* Header */
 .v1-header {
   background: var(--navy);
-  padding: 16px 20px 14px;
+  padding: 40px 20px 16px;
   flex-shrink: 0;
 }
 
@@ -143,16 +143,15 @@ html, body {
 
 /* Tab bar */
 .v1-tabs {
-  display: flex;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   background: #fff;
   flex-shrink: 0;
   box-shadow: 0 1px 0 var(--divider);
 }
 
 .v1-tab {
-  flex: 1;
-  padding: 14px 6px;
+  padding: 14px 8px;
   font-family: var(--font-head);
   font-size: 14px;
   font-weight: 700;
@@ -164,7 +163,7 @@ html, body {
   cursor: pointer;
   border-bottom: 3px solid transparent;
   transition: color 0.2s, border-color 0.2s;
-  white-space: nowrap;
+  text-align: center;
 }
 .v1-tab.active {
   color: var(--navy);
