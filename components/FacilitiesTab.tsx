@@ -11,25 +11,28 @@ export default function FacilitiesTab({ onSelect }: { onSelect: (c: Category) =>
     .sort((a, b) => a.title.toLowerCase().localeCompare(b.title.toLowerCase()));
 
   return (
-    <div className="flex-1 ios-scroll" style={{ background: "var(--bg)" }}>
+    <div className="flex-1 ios-scroll">
       {!loaded && (
         <div className="flex items-center justify-center h-32">
-          <div className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: "var(--navy)", borderTopColor: "transparent" }} />
+          <div className="w-8 h-8 border-2 border-[#00226B] border-t-transparent rounded-full animate-spin" />
         </div>
       )}
-      <div className="v1-cat-grid">
+      <div className="grid grid-cols-5 gap-3 p-4">
         {visible.map(cat => (
           <button
             key={cat.id}
-            className="v1-cat-tile"
+            className="card-press flex flex-col items-center gap-2"
             onClick={() => onSelect(cat)}
           >
-            <div className="v1-cat-icon">
+            <div
+              className="w-full aspect-square rounded-xl flex items-center justify-center"
+              style={{ backgroundColor: "#f2f2f7" }}
+            >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={cat.image}
                 alt={cat.title}
-                className="w-14 h-14 object-contain"
+                className="w-12 h-12 object-contain"
                 onError={(e) => {
                   const img = e.target as HTMLImageElement;
                   img.style.display = "none";
@@ -41,7 +44,7 @@ export default function FacilitiesTab({ onSelect }: { onSelect: (c: Category) =>
                 }}
               />
             </div>
-            <span className="v1-cat-label">{cat.title}</span>
+            <span className="text-[13px] text-black text-center leading-tight">{cat.title}</span>
           </button>
         ))}
       </div>

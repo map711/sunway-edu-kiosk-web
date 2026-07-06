@@ -61,6 +61,7 @@ export default function KioskShell() {
     });
   }, [loadData, loadStaff]);
 
+  // Working hours check — runs every minute
   useEffect(() => {
     const check = () => setWithinWorkingHours(checkWorkingHours());
     check();
@@ -68,6 +69,7 @@ export default function KioskShell() {
     return () => clearInterval(interval);
   }, []);
 
+  // Reset idle timer
   const resetIdle = useCallback(() => {
     if (idleRef.current) clearTimeout(idleRef.current);
     idleRef.current = setTimeout(() => {
@@ -77,13 +79,14 @@ export default function KioskShell() {
       setFilterDepartment(null);
       setShowResults(false);
       setTab(0);
-      setMapDestinationId(null);
+      setMapDestinationId(null); // close map on idle
       setNotProvisionedAlert(false);
       setFloorPicker(null);
       inputRef.current?.blur();
     }, IDLE_SECONDS * 1000);
   }, []);
 
+  // Track any user interaction
   useEffect(() => {
     const events = ["touchstart", "mousedown", "keydown", "mousemove"];
     events.forEach(e => window.addEventListener(e, resetIdle, { passive: true }));
@@ -92,7 +95,7 @@ export default function KioskShell() {
   }, [resetIdle]);
 
   const handleScreensaverTap = () => {
-    if (!withinWorkingHours) return;
+    if (!withinWorkingHours) return; // outside hours: black screen can't be dismissed
     setScreensaverExpanded(prev => !prev);
     resetIdle();
   };
@@ -144,11 +147,14 @@ export default function KioskShell() {
   };
 
   const openMap = (locationId: number) => {
+    // Check kiosk is provisioned
     const rawNodeId = typeof window !== "undefined" ? localStorage.getItem(KIOSK_NODE_KEY) : null;
     if (!rawNodeId) {
       setNotProvisionedAlert(true);
       return;
     }
+
+    // Find unique floors for this location
     const locationNodes = nodes.filter(n => n.location === locationId);
     const seenLevels = new Set<number>();
     const floors: FloorOption[] = [];
@@ -159,6 +165,7 @@ export default function KioskShell() {
         if (level) floors.push({ levelId: node.level, title: level.title, label: level.label });
       }
     }
+
     if (floors.length >= 2) {
       setFloorPicker({ locationId, floors });
     } else {
@@ -187,7 +194,7 @@ export default function KioskShell() {
   };
 
   return (
-    <div className="h-full flex flex-col overflow-hidden" style={{ background: "var(--bg)" }} onPointerDown={resetIdle}>
+    <div className="h-full flex flex-col bg-white overflow-hidden" onPointerDown={resetIdle}>
 
       {/* Screensaver overlay */}
       <Screensaver isExpanded={screensaverExpanded} onTap={handleScreensaverTap} isWorkingHours={withinWorkingHours} />
@@ -197,10 +204,10 @@ export default function KioskShell() {
         onClose={() => { setShowAdmin(false); setQuery(""); }}
       />}
 
-      {/* Map overlay */}
+      {/* Map overlay — kept mounted once shown so it doesn't re-fetch on every open */}
       {mapMounted && <MapView destinationId={mapDestinationId} onClose={handleMapClose} />}
 
-      {/* Not provisioned alert */}
+      {/* "Not provisioned" alert */}
       {notProvisionedAlert && (
         <div
           className="fixed inset-0 z-[200] flex items-center justify-center"
@@ -213,7 +220,13 @@ export default function KioskShell() {
               <p className="text-[13px] text-[#3c3c43]">This Kiosk has not been provisioned. Please contact Concierge.</p>
             </div>
             <div style={{ borderTop: "0.5px solid #e5e5ea" }}>
-              <button className="w-full py-3 text-[17px] font-medium" style={{ color: "#007aff" }} onClick={() => setNotProvisionedAlert(false)}>Ok</button>
+              <button
+                className="w-full py-3 text-[17px] font-medium"
+                style={{ color: "#007aff" }}
+                onClick={() => setNotProvisionedAlert(false)}
+              >
+                Ok
+              </button>
             </div>
           </div>
         </div>
@@ -230,7 +243,7 @@ export default function KioskShell() {
             <div className="px-5 pt-5 pb-3 text-center">
               <p className="text-[17px] font-semibold text-black">To which floor?</p>
             </div>
-            {floorPicker.floors.map((floor) => (
+            {floorPicker.floors.map((floor, i) => (
               <div key={floor.levelId}>
                 <div style={{ borderTop: "0.5px solid #e5e5ea" }} />
                 <button
@@ -248,42 +261,54 @@ export default function KioskShell() {
               </div>
             ))}
             <div style={{ borderTop: "0.5px solid #e5e5ea" }} />
-            <button className="w-full py-3 text-[17px] font-medium" style={{ color: "#ff3b30" }} onClick={() => setFloorPicker(null)}>Cancel</button>
+            <button
+              className="w-full py-3 text-[17px] font-medium"
+              style={{ color: "#ff3b30" }}
+              onClick={() => setFloorPicker(null)}
+            >
+              Cancel
+            </button>
           </div>
         </div>
       )}
 
-      {/* ── V1 Header: Navy bar with branding + search ── */}
-      <div className="v1-header">
-        <div className="v1-brand">
-          <span className="v1-brand-sub">Campus Directory</span>
-          <span className="v1-brand-name">Sunway University</span>
-        </div>
-        <div className="v1-search-row">
-          <input
-            ref={inputRef}
-            className="v1-search"
-            placeholder="Search facilities, offices, staff…"
-            value={query}
-            onChange={e => handleQueryChange(e.target.value)}
-            onFocus={resetIdle}
-          />
-          <button onClick={handleClear} className="v1-clear">Clear</button>
-        </div>
+      {/* Search bar */}
+      <div className="flex items-center gap-2 px-4 pt-3 pb-2 flex-shrink-0">
+        <input
+          ref={inputRef}
+          className="search-bar"
+          placeholder="Tap Here To Search"
+          value={query}
+          onChange={e => handleQueryChange(e.target.value)}
+          onFocus={resetIdle}
+        />
+        <button
+          onClick={handleClear}
+          className="flex-shrink-0 px-4 py-2 rounded-lg text-white text-[15px] font-medium"
+          style={{ backgroundColor: "var(--navy)" }}
+        >
+          Clear
+        </button>
       </div>
 
-      {/* ── V1 Tab bar ── */}
+      {/* Segment control — hidden when showing results */}
       {!showResults && (
-        <div className="v1-tabs">
-          {TABS.map((t, i) => (
-            <button key={t} className={`v1-tab${tab === i ? " active" : ""}`} onClick={() => handleTabChange(i)}>
-              {t}
-            </button>
-          ))}
+        <div className="px-4 pb-3 flex-shrink-0">
+          <div className="segment-control">
+            {TABS.map((t, i) => (
+              <button
+                key={t}
+                className={`segment-btn ${tab === i ? "active" : ""}`}
+                onClick={() => handleTabChange(i)}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
-      {/* Content */}
+      {/* Content area */}
       {showResults ? (
         <SearchResults
           query={query}
@@ -301,8 +326,9 @@ export default function KioskShell() {
         </>
       )}
 
+      {/* Footer version info */}
       {!showResults && tab === 0 && (
-        <div className="text-center pb-3 flex-shrink-0" style={{ fontSize: 11, color: "#aeaeb2" }}>
+        <div className="text-center pb-3 text-[11px] text-[#aeaeb2] flex-shrink-0">
           <p>Version 1.0 Build #14</p>
         </div>
       )}
