@@ -16,7 +16,7 @@ const ADMIN_CODE = "my3245campusx";
 const KIOSK_NODE_KEY = "admin.kiosk.nodeId";
 const WORKING_START_KEY = "admin.working.start";
 const WORKING_END_KEY   = "admin.working.end";
-const TABS = ["Popular Searches", "Facilities / Offices", "Departments / Staffs", "Events"] as const;
+const TABS = ["Popular Searches", "Facilities / Offices", "Departments", "Events"] as const;
 
 function checkWorkingHours(): boolean {
   return true; // disabled — always treat as working hours

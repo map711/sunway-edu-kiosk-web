@@ -21,7 +21,6 @@ export default function DepartmentsTab({ onSelect }: { onSelect: (dept: string) 
       {departments.map(dept => (
         <button key={dept} className="v1-dept-card" onClick={() => onSelect(dept)}>
           <span className="v1-dept-name">{dept}</span>
-          <div className="chevron" />
         </button>
       ))}
     </div>

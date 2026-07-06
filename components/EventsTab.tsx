@@ -22,7 +22,7 @@ export default function EventsTab() {
   }
 
   return (
-    <div className="flex-1 ios-scroll px-4 pt-4 pb-6 flex flex-col gap-4">
+    <div className="flex-1 ios-scroll px-5 pt-6 pb-6 flex flex-col gap-4">
       {highlights.map((h, i) => (
         <div key={i} className="rounded-2xl overflow-hidden bg-[#f2f2f7]" style={{ flexShrink: 0 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
