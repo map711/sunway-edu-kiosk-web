@@ -35,7 +35,7 @@ interface FloorOption {
 }
 
 export default function KioskShell() {
-  const { loadData, loadStaff, locations, nodes, levels } = useDataStore();
+  const { loadData, loadStaff, locations, nodes, levels, lastRefreshed, lastStaffRefreshed } = useDataStore();
 
   const [tab, setTab] = useState(0);
   const [query, setQuery] = useState("");
@@ -185,6 +185,18 @@ export default function KioskShell() {
     handleClear();
   };
 
+  const formatTimestamp = (date: Date | null) => {
+    if (!date) return "—";
+    const days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+    const y = date.getFullYear();
+    const mo = String(date.getMonth()+1).padStart(2,"0");
+    const d = String(date.getDate()).padStart(2,"0");
+    const h = date.getHours() % 12 || 12;
+    const mi = String(date.getMinutes()).padStart(2,"0");
+    const ap = date.getHours() >= 12 ? "PM" : "AM";
+    return `${days[date.getDay()]} ${y}-${mo}-${d} ${h}:${mi} ${ap}`;
+  };
+
   return (
     <div className="h-full flex flex-col overflow-hidden" style={{ background: "var(--bg)" }} onPointerDown={resetIdle}>
 
@@ -300,6 +312,14 @@ export default function KioskShell() {
         </>
       )}
 
+      {!showResults && (
+        <div className="text-center pb-4 flex-shrink-0" style={{ fontSize: 11, color: "#aeaeb2", lineHeight: 1.8 }}>
+          <p>Version 1.0 Build #14</p>
+          <p>-</p>
+          <p>Data {formatTimestamp(lastRefreshed)}</p>
+          <p>Since {formatTimestamp(lastStaffRefreshed)}</p>
+        </div>
+      )}
     </div>
   );
 }
