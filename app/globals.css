@@ -168,9 +168,7 @@ html, body {
   white-space: normal;
   line-height: 1.3;
   min-height: 52px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  vertical-align: middle;
 }
 .v1-tab.active {
   color: var(--navy);
