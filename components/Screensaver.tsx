@@ -235,11 +235,19 @@ export default function Screensaver({ isExpanded, onTap, isWorkingHours }: Props
             position: "fixed", inset: 0, zIndex: 48,
             width: "100%", height: "100%",
             objectFit: "cover",
-            filter: "blur(48px) saturate(1.4) brightness(0.5)",
-            transform: "scale(1.08)",
+            filter: "blur(80px) saturate(1.2) brightness(0.6)",
+            transform: "scale(1.2)",
             pointerEvents: "none",
           }}
         />
+      )}
+      {/* Dark overlay — cleans up blur muddiness and improves card contrast */}
+      {VARIANT === 3 && isExpanded && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 48,
+          background: "rgba(0,0,0,0.45)",
+          pointerEvents: "none",
+        }} />
       )}
       {/* Variant 4: average colour wash — extreme blur approximates the image's dominant colour */}
       {VARIANT === 4 && isExpanded && bgImageUrl && (
