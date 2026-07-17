@@ -224,7 +224,7 @@ export default function Screensaver({ isExpanded, onTap, isWorkingHours }: Props
   return createPortal(
     <>
       <div style={backdropStyle} onClick={() => { restartTimer(); onTap(); }} />
-      {/* Variant 3: kiosk UI dimmed behind card via backdropStyle */
+      {/* Variant 3: kiosk UI dimmed behind card via backdropStyle */}
       {/* Variant 4: average colour wash — extreme blur approximates the image's dominant colour */}
       {VARIANT === 4 && isExpanded && bgImageUrl && (
         // eslint-disable-next-line @next/next/no-img-element
